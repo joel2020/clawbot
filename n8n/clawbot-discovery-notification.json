@@ -1,0 +1,90 @@
+{
+  "name": "Clawbot — Discovery Packet Notification (ALI-7)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discovery-complete",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-discovery",
+      "name": "Webhook — Discovery Complete",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "clawbot-discovery-complete"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst dp = body.discovery_packet || {};\nconst summary = body.summary || 'Discovery complete';\n\nreturn {\n  summary,\n  company: dp.company_name || 'Unknown',\n  contact: dp.contact_name || 'Unknown',\n  email: dp.contact_email || 'Unknown',\n  business_type: dp.business_type || 'Unknown',\n  primary_goal: dp.primary_goal || 'Unknown',\n  service_interest: dp.service_interest || 'Unknown',\n  budget_band: dp.budget_band || 'Unknown',\n  urgency_score: dp.urgency_score || 'N/A',\n  fit_score: dp.fit_score || 'N/A',\n  unknowns: (dp.unknowns || []).join(', ') || 'None',\n  open_questions: (body.open_questions || []).join('\\n') || 'None',\n  next_agent: body.recommended_next_agent || 'None',\n  run_id: body.run_id || null,\n  lead_id: body.lead_id || null\n};"
+      },
+      "id": "extract-discovery",
+      "name": "Extract Discovery Packet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst score_bar = (n) => '★'.repeat(Math.min(n,5)) + '☆'.repeat(Math.max(0,5-n));\n\nreturn {\n  subject: `🎯 New Lead: ${d.company} — Discovery Packet Ready`,\n  html: `\n<h2>Discovery Packet — ${d.company}</h2>\n<p><strong>Summary:</strong> ${d.summary}</p>\n\n<h3>Contact</h3>\n<ul>\n  <li><strong>Name:</strong> ${d.contact}</li>\n  <li><strong>Email:</strong> ${d.email}</li>\n  <li><strong>Business Type:</strong> ${d.business_type}</li>\n</ul>\n\n<h3>Engagement</h3>\n<ul>\n  <li><strong>Primary Goal:</strong> ${d.primary_goal}</li>\n  <li><strong>Service Interest:</strong> ${d.service_interest}</li>\n  <li><strong>Budget Band:</strong> ${d.budget_band}</li>\n</ul>\n\n<h3>Scores</h3>\n<ul>\n  <li><strong>Urgency:</strong> ${score_bar(d.urgency_score)} (${d.urgency_score}/5)</li>\n  <li><strong>Fit:</strong> ${score_bar(d.fit_score)} (${d.fit_score}/5)</li>\n</ul>\n\n<h3>Unknowns</h3>\n<p>${d.unknowns}</p>\n\n<h3>Open Questions</h3>\n<pre>${d.open_questions}</pre>\n\n<h3>Next Agent</h3>\n<p>${d.next_agent}</p>\n\n<hr>\n<p style=\"color:#888;font-size:12px\">Run ID: ${d.run_id} | Lead ID: ${d.lead_id}</p>\n`,\n  text: `New lead discovery complete for ${d.company}.\\nContact: ${d.contact} (${d.email})\\nUrgency: ${d.urgency_score}/5 | Fit: ${d.fit_score}/5\\nNext: ${d.next_agent}`\n};"
+      },
+      "id": "build-notification",
+      "name": "Build Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "joelcarias23@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "={{ $json.html }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [900, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-joel",
+          "name": "Gmail — Joel"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"notification_sent\",\"company\":\"{{ $('Extract Discovery Packet').item.json.company }}\"}",
+        "options": {"responseCode": 200}
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Discovery Complete": {
+      "main": [[{"node": "Extract Discovery Packet", "type": "main", "index": 0}]]
+    },
+    "Extract Discovery Packet": {
+      "main": [[{"node": "Build Notification", "type": "main", "index": 0}]]
+    },
+    "Build Notification": {
+      "main": [[{"node": "Send Email Notification", "type": "main", "index": 0}]]
+    },
+    "Send Email Notification": {
+      "main": [[{"node": "Respond OK", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "tags": [{"name": "clawbot"}, {"name": "phase-1"}]
+}
