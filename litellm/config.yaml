@@ -1,0 +1,59 @@
+# LiteLLM Proxy Config — Clawbot
+# Bridges OpenAI-compatible clients to Azure OpenAI.
+# Docs: https://docs.litellm.ai/docs/proxy/configs
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Store spend and usage logs in Postgres
+  database_url: os.environ/DATABASE_URL
+  store_model_in_db: true
+
+litellm_settings:
+  # Log every request for observability
+  success_callback: []
+  failure_callback: []
+  request_timeout: 120
+  num_retries: 3
+  # Drop unsupported params instead of erroring
+  drop_params: true
+
+# ─── Model Aliases ───────────────────────────────────────────────────────────
+# Three tiers: premium, standard, cheap.
+# Point each alias at your actual Azure deployment name.
+# Update deployment names to match what you created in Azure Portal.
+
+model_list:
+
+  # Tier 1 — Premium (complex reasoning, architecture, proposal synthesis)
+  - model_name: reasoning_premium
+    litellm_params:
+      model: azure/gpt-4o
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: os.environ/AZURE_API_VERSION
+      deployment_id: os.environ/AZURE_DEPLOYMENT_PREMIUM
+
+  # Tier 2 — Standard (worker tasks, structured drafting, validation)
+  - model_name: standard_worker
+    litellm_params:
+      model: azure/gpt-4o-mini
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: os.environ/AZURE_API_VERSION
+      deployment_id: os.environ/AZURE_DEPLOYMENT_STANDARD
+
+  # Tier 3 — Cheap (routing, tagging, summarization, triage)
+  - model_name: cheap_router
+    litellm_params:
+      model: azure/gpt-4o-mini
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: os.environ/AZURE_API_VERSION
+      deployment_id: os.environ/AZURE_DEPLOYMENT_CHEAP
+
+# ─── Router Settings ─────────────────────────────────────────────────────────
+router_settings:
+  routing_strategy: latency-based-routing
+  num_retries: 3
+  timeout: 90
+  retry_after: 5

@@ -1,0 +1,49 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Collect all Docker container logs
+  - job_name: docker_containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Use container name as the service label
+      - source_labels: [__meta_docker_container_name]
+        regex: "/(.*)"
+        target_label: service
+      # Include docker-compose service name
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: compose_service
+      # Drop promtail's own logs
+      - source_labels: [service]
+        regex: promtail
+        action: drop
+
+    pipeline_stages:
+      # Parse JSON log lines (structlog output)
+      - json:
+          expressions:
+            level: level
+            event: event
+            run_id: run_id
+            agent: agent
+            request_id: request_id
+            project_id: project_id
+      # Promote log level to a label for Grafana filtering
+      - labels:
+          level:
+          agent:
+          service:
+      # Extract timestamp from JSON if present
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+          action_on_failure: skip

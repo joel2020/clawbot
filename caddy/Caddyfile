@@ -1,0 +1,46 @@
+# Clawbot — Caddyfile
+# Caddy automatically provisions TLS via Let's Encrypt.
+# All internal services are on the Docker 'clawbot' network — never exposed publicly.
+
+# ── Control API ───────────────────────────────────────────────────────────────
+api.aliviosearch.cloud {
+    reverse_proxy control-api:8000
+    encode gzip
+    log {
+        output stdout
+        format json
+    }
+}
+
+# ── Webhooks (n8n inbound) ────────────────────────────────────────────────────
+hooks.aliviosearch.cloud {
+    reverse_proxy n8n:5678
+    encode gzip
+    log {
+        output stdout
+        format json
+    }
+}
+
+# ── n8n UI (IP-restricted — change to your own IP) ───────────────────────────
+n8n.aliviosearch.cloud {
+    # Uncomment and set your IP to lock down the n8n UI:
+    # @blocked not remote_ip 1.2.3.4/32
+    # respond @blocked 403
+    reverse_proxy n8n:5678
+    encode gzip
+    log {
+        output stdout
+        format json
+    }
+}
+
+# ── Grafana (monitoring) ──────────────────────────────────────────────────────
+grafana.aliviosearch.cloud {
+    reverse_proxy grafana:3000
+    encode gzip
+    log {
+        output stdout
+        format json
+    }
+}
