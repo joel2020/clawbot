@@ -86,8 +86,11 @@ def run_agent(self: Task, run_id: str, agent_name: str, input_payload: dict) -> 
         )
 
         raw_output = response.choices[0].message.content
-        import json
-        output = json.loads(raw_output)
+        import json, re
+        # Strip markdown code fences that Azure/LiteLLM sometimes wraps around JSON
+        cleaned = re.sub(r'^```(?:json)?\s*', '', raw_output.strip(), flags=re.IGNORECASE)
+        cleaned = re.sub(r'\s*```$', '', cleaned.strip())
+        output = json.loads(cleaned)
 
         token_usage = {
             "prompt_tokens": response.usage.prompt_tokens,
